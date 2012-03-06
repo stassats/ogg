@@ -2,8 +2,7 @@
 
 (asdf:defsystem #:ogg
   :serial t
-  :depends-on (trivial-gray-streams)
+  :depends-on (binary-data trivial-gray-streams babel)
   :components ((:file "packages")
-               (:file "binary-data")
                (:file "ogg-page")
                (:file "ogg-vorbis")))
