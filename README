@@ -1,0 +1,9 @@
+A library for decoding Ogg/Vorbis audio. So far it's nowhere near
+the decoding stage, but it can access comments (tags):
+
+(with-ogg-stream (stream "~/01_expander.ogg")
+  (read-value 'vorbis stream)
+  (comments (read-value 'vorbis stream)))
+=>
+(:ARTIST "The Future Sound of London" :TITLE "Expander" :ALBUM "Accelerator"
+ :DATE "1996" :TRACKNUMBER "1")
