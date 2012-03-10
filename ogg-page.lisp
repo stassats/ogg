@@ -124,19 +124,7 @@
         finally (return i)))
 
 (defun read-bit (stream)
-  (let ((position (ogg-page-position stream)))
-    (when (= position (ogg-page-length stream))
-      (setf position 0)
-      (refill-stream stream))
-    (let ((data (data (ogg-page stream)))
-          (bits-left (bits-left stream)))
-      (prog1
-          (logbitp (- 8 bits-left) (aref data position))
-        (cond ((= bits-left 1)
-               (incf (ogg-page-position stream))
-               (setf (bits-left stream) 8))
-              (t
-               (decf (bits-left stream))))))))
+  (plusp (read-n-bits 1 stream)))
 
 (defun read-n-bits (n stream)
   (let ((position (ogg-page-position stream)))
