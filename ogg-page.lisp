@@ -110,16 +110,12 @@
       (refill-stream stream))
     (let ((data (data (ogg-page stream)))
           (bits-left (bits-left stream)))
-      (prog1
-          (cond ((= bits-left 8)
-                 (aref data position))
-                (t
-                 (logand (ash bits-left
-                              (print (mask-field (byte (- 8 bits-left) 0) (aref data (1+ position)))))
-                         (ldb (byte bits-left
-                                    (- 8 bits-left))
-                              (aref data position)))))
-        (incf (ogg-page-position stream))))))
+      (cond ((= bits-left 8)
+             (prog1
+                 (aref data position)
+               (incf (ogg-page-position stream))))
+            (t
+             (read-n-bits 8 stream))))))
 
 (defmethod stream-read-sequence ((stream ogg-stream) sequence start end &key)
   (loop for i from start below (or end (length sequence))
@@ -158,8 +154,9 @@
                            bits-left))
               (ldb (byte (min n bits-left) (- 8 bits-left))
                    (aref data position)))
-        (cond ((= bits-left n)
+        (cond ((> n bits-left)
                (incf (ogg-page-position stream))
-               (setf (bits-left stream) 8))
+               (setf (bits-left stream)
+                     (- 8 (- n bits-left))))
               (t
                (decf (bits-left stream) n)))))))

@@ -67,8 +67,7 @@
 
 (define-binary-class vorbis-setup-header (vorbis)
   ((vorbis-codebook-count u1)
-   (codebooks (n-things :thing 'codebook :length 2;; vorbis-codebook-count
-                        ))))
+   (codebooks (n-things :thing 'codebook :length vorbis-codebook-count))))
 
 (define-binary-class codebook ()
   ((sync-pattern u3)
@@ -77,11 +76,12 @@
    (ordered 1-bit)
    (code-books (codebook-entries :length n-codebook-entries
                                  :ordered ordered))
-   (codebook-lookup-type (n-bits :n 5))))
+   (lookup-type (n-bits :n 4))
+   (lookup (lookup :type lookup-type))))
 
 (defun read-unordered-codebook-entries (length stream)
   (loop repeat length
-        for sparse = (read-bit stream)
+        with sparse = (read-bit stream)
         collect (if (and sparse
                          (not (read-bit stream)))
                     :unused
@@ -92,6 +92,13 @@
            (if ordered
                (error "doesn't supported unordered codebook entries")
                (read-unordered-codebook-entries length in)))
+  (:writer (out value)))
+
+(define-binary-type lookup (type)
+  (:reader (in)
+           (if (zerop type)
+               nil
+               (error "doesn't supported lookup type ~a" type)))
   (:writer (out value)))
 
 
