@@ -25,6 +25,8 @@
                  do (write-byte (ldb (byte 8 lsb) value) out))))
 
 (define-binary-type u1 () (integer :bytes 1))
+(define-binary-type u2 () (integer :bytes 2))
+(define-binary-type u3 () (integer :bytes 3))
 (define-binary-type u4 () (integer :bytes 4))
 
 (define-binary-type 1-bit ()
@@ -148,13 +150,14 @@
     (let ((data (data (ogg-page stream)))
           (bits-left (bits-left stream)))
       (prog1
-          (logand (ash bits-left
-                       (mask-field (byte (- n bits-left) 0) (aref data (1+ position))))
-                  (if (> bits-left n)
-                      0
-                      (ldb (byte bits-left
-                                 (- n bits-left))
-                           (aref data position))))
+          (if (> n bits-left)
+              (logior (ldb (byte (min n bits-left) (- 8 bits-left))
+                           (aref data position))
+                      (ash (ldb (byte (- n bits-left) 0)
+                                (aref data (1+ position)))
+                           bits-left))
+              (ldb (byte (min n bits-left) (- 8 bits-left))
+                   (aref data position)))
         (cond ((= bits-left n)
                (incf (ogg-page-position stream))
                (setf (bits-left stream) 8))
