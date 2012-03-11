@@ -67,38 +67,80 @@
 
 (define-binary-class vorbis-setup-header (vorbis)
   ((vorbis-codebook-count u1)
-   (codebooks (n-things :thing 'codebook :length vorbis-codebook-count))))
+   (codebooks (n-things :thing 'codebook
+                        :length (1+ vorbis-codebook-count)))))
 
 (define-binary-class codebook ()
   ((sync-pattern u3)
-   (codebook-dimensions u2)
-   (n-codebook-entries u3)
+   (dimensions u2)
+   (codebook-length u3)
    (ordered 1-bit)
-   (code-books (codebook-entries :length n-codebook-entries
-                                 :ordered ordered))
+   (codebooks (codebook-entries :length codebook-length
+                                :ordered ordered))
    (lookup-type (n-bits :n 4))
-   (lookup (lookup :type lookup-type))))
+   (lookup (lookup :type lookup-type
+                   :length codebook-length
+                   :dimensions dimensions))))
 
 (defun read-unordered-codebook-entries (length stream)
-  (loop repeat length
-        with sparse = (read-bit stream)
-        collect (if (and sparse
-                         (not (read-bit stream)))
-                    :unused
-                    (1+ (read-n-bits 5 stream)))))
+  (let ((result (make-array length)))
+    (loop for i below length
+          with sparse = (read-bit stream)
+          do (setf (aref result i)
+                   (if (and sparse
+                            (not (read-bit stream)))
+                       :unused
+                       (1+ (read-n-bits 5 stream)))))
+    result))
+
+(defun read-ordered-codebook-entries (length stream)
+  (let ((result (make-array length)))
+    (loop for current-length from (1+ (read-n-bits 5 stream))
+          for current-entry = 0 then (+ current-entry number)
+          for number = (cond ((> current-entry length)
+                              (error "Can't happen"))
+                             ((= current-entry length)
+                              (return))
+                             (t
+                              (read-n-bits (integer-length (- length current-entry)) stream)))
+          do
+          (loop for i from current-entry below (+ current-entry number)
+                do (setf (aref result i) current-length)))
+    result))
 
 (define-binary-type codebook-entries (length ordered)
   (:reader (in)
            (if ordered
-               (error "doesn't supported unordered codebook entries")
+               (read-ordered-codebook-entries length in)
                (read-unordered-codebook-entries length in)))
   (:writer (out value)))
 
-(define-binary-type lookup (type)
+(defun lookup1-values (length dimensions)
+  (let ((r (floor (exp (/ (log length) dimensions)))))
+    (if (>= length (expt (1+ r) dimensions))
+        (1+ r)
+        r)))
+
+(defun read-lookup-values (type length dimensions stream)
+  (let* ((min (read-value 'u4 stream))
+         (delta (read-value 'u4 stream))
+         (bits (1+ (read-n-bits 4 stream)))
+         (sequencep (read-bit stream))
+         (size (if (= type 1)
+                   (lookup1-values length dimensions)
+                   (* length dimensions)))
+         (result (make-array size)))
+    (loop for i below size
+          do (setf (aref result i)
+                   (read-n-bits bits stream)))
+    result))
+
+(define-binary-type lookup (type length dimensions)
   (:reader (in)
-           (if (zerop type)
-               nil
-               (error "doesn't supported lookup type ~a" type)))
+           (ecase type
+             (0)
+             ((1 2)
+              (read-lookup-values type length dimensions in))))
   (:writer (out value)))
 
 
