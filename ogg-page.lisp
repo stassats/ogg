@@ -75,8 +75,7 @@
    (data-size (data-size :length number-page-segments))
    (data (vector :length data-size))))
 
-(defclass ogg-stream (fundamental-binary-stream
-                      trivial-gray-stream-mixin)
+(defclass ogg-stream (fundamental-binary-input-stream)
   ((stream :initarg :stream
            :reader ogg-stream)
    (page :initform (make-instance 'ogg-page)
@@ -97,7 +96,7 @@
 
 (defun refill-stream (ogg-stream)
   (with-slots (stream page position length) ogg-stream
-    (read-object page stream)
+    (binary-data::read-object page stream)
     (setf position 0
           length (data-size page)
           (bits-left ogg-stream) 8))
